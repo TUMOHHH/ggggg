@@ -1,12 +1,12 @@
-/*! ALLRED Studio scene — pyramids + strong interactivity (Tilda HEAD external JS) */
+/*! ALLRED Studio scene — BUILD 9 (pyramids only, strong hover, clean glass/metal) */
 (function(){
   const CDN1="https://unpkg.com/three@0.160.0/build/three.min.js";
   const CDN2="https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js";
 
-  // ---------- CSS + HTML ----------
+  // == CSS + HTML ==
   function addStyle(){
     if(document.getElementById("allred-style")) return;
-    const css = `
+    const css=`
 @import url('https://api.fontshare.com/v2/css?f[]=satoshi@1,2,300,400,500,700&display=swap');
 :root{--fg:#0a0a0a}
 .allred-stage{position:relative;width:100%;height:100%;min-height:100vh;overflow:hidden;
@@ -23,46 +23,42 @@
   repeating-linear-gradient(to right,rgba(0,0,0,.06) 0,rgba(0,0,0,.06) 1px,transparent 60px),
   repeating-linear-gradient(to bottom,rgba(0,0,0,.04) 0,rgba(0,0,0,.04) 1px,transparent 60px);
   transform:perspective(1200px) rotateX(35deg) translateY(16vh);opacity:.45;filter:blur(.2px)}
-.grain{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.14;mix-blend-mode:multiply;
+.grain{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.12;mix-blend-mode:multiply;
   background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.9"/></svg>');
   animation:g 1.6s steps(2) infinite}
 @keyframes g{0%{transform:translate(0,0)}25%{transform:translate(-8px,5px)}50%{transform:translate(7px,-4px)}75%{transform:translate(-3px,10px)}100%{transform:translate(0,0)}}
-.glitch{position:absolute;inset:auto 0 18vh 0;height:1px;background:linear-gradient(90deg,#e10600,transparent 60%);opacity:.25;filter:blur(.3px);
-  animation:gl 5s linear infinite}@keyframes gl{0%,60%{transform:translateX(-100vw)}65%,100%{transform:translateX(100vw)}}
+#allred-build{position:fixed;right:10px;bottom:10px;z-index:5;font:600 11px/1.1 system-ui;padding:.25rem .5rem;border-radius:.5rem;background:#0008;color:#fff}
 `;
     const s=document.createElement("style"); s.id="allred-style"; s.textContent=css; document.head.appendChild(s);
   }
   function addMarkup(){
     const root=document.getElementById("allred-root")||document.body;
     if(document.getElementById("ALLRED_STAGE")) return;
-    root.insertAdjacentHTML("beforeend", `
+    root.insertAdjacentHTML("beforeend",`
 <div class="allred-stage" id="ALLRED_STAGE">
   <div class="grid"></div>
   <canvas id="allred-fx" aria-hidden="true"></canvas>
-  <div class="allred-ui">
-    <div class="center">
-      <div class="t">ALLRED Studio</div>
-      <div class="s">We Make The Internet Better</div>
-      <button class="b" id="allred-cta">Leave a request</button>
-    </div>
-  </div>
+  <div class="allred-ui"><div class="center">
+    <div class="t">ALLRED Studio</div>
+    <div class="s">We Make The Internet Better</div>
+    <button class="b" id="allred-cta">Leave a request</button>
+  </div></div>
   <div class="grain"></div>
-  <div class="glitch"></div>
 </div>`);
+    const tag=document.createElement('div'); tag.id='allred-build'; tag.textContent='ALLRED build 9'; document.body.appendChild(tag);
   }
-
   function ready(fn){document.readyState!=="loading"?fn():document.addEventListener("DOMContentLoaded",fn)}
   function ensureTHREE(cb){
     if(window.THREE) return cb();
     const a=document.createElement("script"); a.src=CDN1; a.onload=cb; a.onerror=()=>{const b=document.createElement("script"); b.src=CDN2; b.onload=cb; document.head.appendChild(b)}; document.head.appendChild(a);
   }
 
-  // ---------- SCENE ----------
+  // == SCENE ==
   function start(){
     addStyle(); addMarkup();
 
     // Тюнинг
-    const BASE_W=1536, COUNT=130, SIZE_MIN=1.3, SIZE_MAX=3.2, HOVER_FORCE=0.18, CLICK_FORCE=0.38, DAMP=0.93, RADIUS=3.2;
+    const BASE_W=1536, COUNT=130, SIZE_MIN=1.3, SIZE_MAX=3.2, HOVER_FORCE=0.2, CLICK_FORCE=0.45, DAMP=0.93, RADIUS=3.3;
 
     const cvs=document.getElementById("allred-fx");
     const renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true,alpha:true});
@@ -79,41 +75,46 @@
     // env + noise
     const env=makeEnv();
     const normalTex=noise(256,256,.9,true);
-    const roughTex =noise(256,256,.5,false);
+    const roughTex =noise(256,256,.35,false); // чуть глаже
     const RED=new THREE.Color(0xe10600);
+    const normalScale=new THREE.Vector2(0.18,0.18);
 
     const glass=new THREE.MeshPhysicalMaterial({
-      color:0xf0f5ff, metalness:.65, roughness:.2, clearcoat:1, clearcoatRoughness:.06,
-      transmission: renderer.capabilities.isWebGL2 ? 0.6 : 0.0, thickness:1.1, ior:1.4,
-      envMap:env, envMapIntensity:1.1, normalMap:normalTex, roughnessMap:roughTex
+      color:0xf7fbff, metalness:.45, roughness:.06,
+      clearcoat:1, clearcoatRoughness:.03,
+      transmission: renderer.capabilities.isWebGL2 ? 0.75 : 0.0, thickness:0.8, ior:1.45,
+      envMap:env, envMapIntensity:1.25, normalMap:normalTex, roughnessMap:roughTex
     });
-    const redMetal=new THREE.MeshPhysicalMaterial({
-      color:RED, metalness:.78, roughness:.25, clearcoat:.85, clearcoatRoughness:.12,
-      envMap:env, envMapIntensity:1.05, normalMap:normalTex, roughnessMap:roughTex
-    });
+    glass.normalScale = normalScale.clone();
 
-    // ТОЛЬКО пирамиды
+    const redMetal=new THREE.MeshPhysicalMaterial({
+      color:RED, metalness:.9, roughness:.2,
+      clearcoat:1, clearcoatRoughness:.06,
+      envMap:env, envMapIntensity:1.2, normalMap:normalTex, roughnessMap:roughTex
+    });
+    redMetal.normalScale = normalScale.clone();
+
+    // ТОЛЬКО ПИРАМИДЫ
     const geos=[
-      new THREE.ConeGeometry(.55,1.25,3).translate(0,.62,0), // трёхгранная пирамида
-      new THREE.TetrahedronGeometry(.7,0),                   // тетраэдр
-      new THREE.ConeGeometry(.48,1.05,3).translate(0,.52,0)
+      new THREE.ConeGeometry(.6,1.35,3).translate(0,.675,0),
+      new THREE.TetrahedronGeometry(.85,0),
+      new THREE.ConeGeometry(.5,1.1,3).translate(0,.55,0),
     ];
 
     // Боковые крупные осколки
     const side=new THREE.Group(); scene.add(side);
-    const scale=Math.min(1.45, Math.max(.7, innerWidth/BASE_W));
+    const scale=Math.min(1.5, Math.max(.7, innerWidth/BASE_W));
     const count=Math.round(COUNT*scale);
     const shards=[];
-
     function spawn(area,n){
       for(let i=0;i<n;i++){
         const g=geos[(Math.random()*geos.length)|0];
-        const mat=(Math.random()<.3? redMetal: glass).clone();
+        const mat=(Math.random()<.45? redMetal: glass).clone(); // больше красных
         const m=new THREE.Mesh(g,mat);
         const base=new THREE.Vector3(
           THREE.MathUtils.randFloat(area.minX,area.maxX),
           THREE.MathUtils.randFloat(area.minY,area.maxY),
-          THREE.MathUtils.randFloat(-2.6,2.2)
+          THREE.MathUtils.randFloat(-2.4,2.2)
         );
         m.position.copy(base);
         m.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
@@ -129,46 +130,45 @@
     spawn({minX: X*.45,maxX: X,  minY:-1,maxY:Y}, Math.round(count*.55));
     spawn({minX:-X*.9, maxX: X*.9, minY:Y*.55,maxY:Y}, Math.round(count*.35));
 
-    // Центральная фигура (большие пирамиды)
+    // Центральная фигура (пирамиды)
     const center=new THREE.Group(); scene.add(center); center.position.set(0,.2,0);
     const cluster=new THREE.Group(); center.add(cluster);
     function pyr(r,h,red){const g=new THREE.ConeGeometry(r,h,3).translate(0,h/2,0); return new THREE.Mesh(g, red?redMetal.clone():glass.clone());}
-    const P=[];
-    const p1=pyr(1.18,2.2,0); p1.rotation.y=Math.PI/7; cluster.add(p1); P.push(p1);
-    const p2=pyr(.85,1.8,1); p2.position.set(1.6,.1,.2); p2.rotation.set(.05,-.4,.2); cluster.add(p2); P.push(p2);
-    const p3=pyr(.75,1.6,0); p3.position.set(-1.5,-.15,-.3); p3.rotation.set(-.2,.5,-.15); cluster.add(p3); P.push(p3);
-    const p4=pyr(.65,1.35,0); p4.position.set(.25,-.55,1.25); p4.rotation.set(.35,-.2,.1); cluster.add(p4); P.push(p4);
-    const p5=pyr(.58,1.25,1); p5.position.set(-.35,.78,.95); p5.rotation.set(-.1,.25,0); cluster.add(p5); P.push(p5);
-    const pdata=P.map(m=>({m,base:m.position.clone(),rot:m.rotation.clone()}));
+    const P=[], PD=[];
+    const p1=pyr(1.2,2.25,0); p1.rotation.y=Math.PI/7; cluster.add(p1); P.push(p1);
+    const p2=pyr(.9,1.85,1); p2.position.set(1.65,.1,.2); p2.rotation.set(.05,-.42,.2); cluster.add(p2); P.push(p2);
+    const p3=pyr(.78,1.65,0); p3.position.set(-1.52,-.15,-.3); p3.rotation.set(-.2,.5,-.15); cluster.add(p3); P.push(p3);
+    const p4=pyr(.66,1.35,0); p4.position.set(.25,-.55,1.25); p4.rotation.set(.35,-.2,.1); cluster.add(p4); P.push(p4);
+    const p5=pyr(.6,1.25,1); p5.position.set(-.35,.78,.95); p5.rotation.set(-.1,.25,0); cluster.add(p5); P.push(p5);
+    P.forEach(m=>PD.push({m,base:m.position.clone(),rot:m.rotation.clone()}));
 
-    // Микро-дебрис
-    const dGeo=new THREE.TetrahedronGeometry(.09,0);
-    const dMat=new THREE.MeshPhysicalMaterial({color:0xffffff, metalness:.55, roughness:.35, envMap:env, envMapIntensity:1.0, normalMap:normalTex, roughnessMap:roughTex});
+    // Микро-дебрис (малые пирамидки)
+    const dGeo=new THREE.TetrahedronGeometry(.1,0);
+    const dMat=new THREE.MeshPhysicalMaterial({color:0xffffff, metalness:.55, roughness:.3, envMap:env, envMapIntensity:1.0, normalMap:normalTex, roughnessMap:roughTex});
+    dMat.normalScale = normalScale.clone();
     const debris=[], dGroup=new THREE.Group(); center.add(dGroup);
     for(let i=0;i<120;i++){
-      const m=new THREE.Mesh(dGeo, (Math.random()<.25?redMetal:dMat).clone());
+      const m=new THREE.Mesh(dGeo,(Math.random()<.3?redMetal:dMat).clone());
       const r=THREE.MathUtils.randFloat(1.6,3.0), a=Math.random()*Math.PI*2;
       m.position.set(Math.cos(a)*r, THREE.MathUtils.randFloat(-.8,1.2), Math.sin(a)*r);
       m.userData={base:m.position.clone(),ph:Math.random()*Math.PI*2};
       dGroup.add(m); debris.push(m);
     }
 
-    // ----- Взаимодействие (правильная точка луча!) -----
+    // Наведение — пересечение луча с плоскостью Z=0
     const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
-    const pointer=new THREE.Vector3();                 // точка на плоскости z=0
-    const planeZ0=new THREE.Plane(new THREE.Vector3(0,0,1), 0); // z=0
+    const pointer=new THREE.Vector3(); const planeZ0=new THREE.Plane(new THREE.Vector3(0,0,1),0);
     let active=false, hover=false;
-
     addEventListener("pointermove",(e)=>{
       const rect=renderer.domElement.getBoundingClientRect();
       ndc.x=((e.clientX-rect.left)/rect.width)*2-1;
       ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;
       ray.setFromCamera(ndc,camera);
-      ray.ray.intersectPlane(planeZ0, pointer);    // <-- вот это фикс интерактива
+      ray.ray.intersectPlane(planeZ0, pointer);
       active=true; hover = pointer.distanceTo(center.position) < 3.2;
     },{passive:true});
     addEventListener("pointerleave",()=>{active=false; hover=false;});
-    addEventListener("click",()=> impulse(CLICK_FORCE, RADIUS*1.2));
+    addEventListener("click",()=> impulse(CLICK_FORCE, RADIUS*1.25));
 
     function impulse(force,rad){
       for(const m of shards){
@@ -180,7 +180,7 @@
       }
     }
 
-    // ----- Анимация -----
+    // Анимация
     function tick(t){
       requestAnimationFrame(tick);
 
@@ -207,13 +207,13 @@
         d.position.lerp(p,.18);
         d.rotation.x+=.012; d.rotation.y+=.01;
       }
-      for(const o of pdata){
+      for(const o of PD){
         const m=o.m;
         if(hover){
           const dir=m.position.clone().sub(cluster.position).normalize();
-          const target=o.base.clone().addScaledVector(dir,.52);
-          m.position.lerp(target,.22);
-          m.rotation.x+=.009; m.rotation.y+=.010;
+          const target=o.base.clone().addScaledVector(dir,.55);
+          m.position.lerp(target,.23);
+          m.rotation.x+=.01; m.rotation.y+=.011;
         }else{
           m.position.lerp(o.base,.14);
           m.rotation.x=THREE.MathUtils.lerp(m.rotation.x,o.rot.x,.14);
@@ -226,11 +226,7 @@
     }
     tick(0);
 
-    addEventListener("resize",()=>{
-      renderer.setSize(innerWidth,innerHeight);
-      camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
-    });
-
+    addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();});
     document.getElementById("allred-cta")?.addEventListener("click",()=> alert("ALLRED Studio — request form goes here."));
 
     // helpers
@@ -249,7 +245,7 @@
       for(let i=0;i<img.data.length;i+=4){
         const n=Math.random()*255;
         if(asNormal){
-          img.data[i]=128+(n-128)*.4; img.data[i+1]=128+(Math.random()*255-128)*.4; img.data[i+2]=255; img.data[i+3]=255;
+          img.data[i]=128+(n-128)*.25; img.data[i+1]=128+(Math.random()*255-128)*.25; img.data[i+2]=255; img.data[i+3]=255;
         } else {
           const v=255-n*inten; img.data[i]=img.data[i+1]=img.data[i+2]=v; img.data[i+3]=255;
         }
