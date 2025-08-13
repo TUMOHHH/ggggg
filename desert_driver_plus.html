@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desert Driver+ — ALLRED</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sand: #f2d6a3;
+    --sky: #b7e0ff;
+    --ui: #0b0d10;
+    --accent: #e10600;
+  }
+  html,body{height:100%;margin:0;background:var(--ui);overflow:hidden}
+  #game{position:fixed;inset:0;display:block;background:#89cfffb0}
+  .hud{
+    position:fixed;left:12px;top:12px;z-index:10;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:#fff;background:#000a;padding:.6rem .8rem;border-radius:12px;
+    font-size:13px;line-height:1.45;backdrop-filter:blur(6px);border:1px solid #ffffff1a;
+  }
+  .hud b{color:#fff}
+  .badge{
+    position:fixed;right:10px;bottom:10px;z-index:10;
+    color:#fff;background:#000c;padding:.25rem .5rem;border-radius:.5rem;
+    font:600 11px/1 Inter,system-ui;
+  }
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:26px;background:#111c;color:#fff;border:1px solid #ffffff14;padding:.5rem .75rem;
+    border-radius:10px;font:600 12px/1.2 Inter,system-ui;opacity:.95;z-index:10;display:none;
+  }
+  .speedo{
+    position:fixed;right:12px;top:12px;z-index:10;
+    background:#000a;color:#fff;border:1px solid #ffffff1a;border-radius:12px;
+    padding:.6rem .8rem;min-width:120px;text-align:right;font-family:Inter,system-ui;
+  }
+  .speedo .v{font-size:28px;font-weight:800;letter-spacing:-0.02em}
+  .speedo .u{opacity:.8;font-size:12px}
+  .bar{margin-top:.4rem;height:10px;background:#ffffff12;border-radius:6px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#ff7b00,#ffe100);}
+  .overlay{
+    position:fixed;inset:0;background:linear-gradient(180deg,#091018,rgba(0,0,0,0.3));
+    display:grid;place-items:center;color:#fff;font-family:Inter,system-ui;z-index:20;
+  }
+  .overlay .card{
+    background:#000a;border:1px solid #ffffff1a;border-radius:16px;padding:1rem 1.2rem;max-width:520px;text-align:center;
+    box-shadow:0 8px 40px #00000066;
+  }
+  .overlay h1{margin:.1rem 0 .6rem;font-size:28px;letter-spacing:-0.02em}
+  .overlay p{opacity:.9;margin:.2rem 0}
+  .overlay .btn{margin-top:.8rem;background:#fff;color:#111;border-radius:10px;padding:.6rem 1rem;font-weight:800;cursor:pointer}
+  /* Mobile controls */
+  .pad{
+    position:fixed;left:12px;bottom:12px;z-index:9;display:flex;gap:10px;align-items:flex-end;
+    user-select:none;-webkit-user-select:none;touch-action:none;
+  }
+  .pad .col{display:flex;flex-direction:column;gap:10px}
+  .btnc{width:64px;height:64px;border-radius:12px;background:#ffffff22;border:1px solid #ffffff2a;
+        display:grid;place-items:center;color:#fff;font:700 16px/1 Inter;backdrop-filter:blur(8px)}
+  .btnc:active{transform:scale(.96)}
+  .pad .wide{width:116px}
+  @media (min-width:900px){ .pad{display:none} }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div><b>W</b> — газ, <b>S</b> — тормоз/задний ход</div>
+  <div><b>A/D</b> — поворот, <b>Shift</b> — нитро, <b>C</b> — камера</div>
+  <div>Сбивай: 🌵 кактусы, 🌬️ перекати-поле, 🐸 лягушки</div>
+</div>
+<div class="speedo">
+  <div class="v"><span id="spd">0</span> <span class="u">км/ч</span></div>
+  <div class="bar"><i id="nitro"></i></div>
+</div>
+<div class="badge">Desert Driver+</div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <h1>Desert Driver+</h1>
+    <p>Нажми “Старт”, чтобы включить звук и управление.</p>
+    <p>W/S — газ/тормоз, A/D — поворот, Shift — нитро, C — камера.</p>
+    <div class="btn" id="startBtn">Старт</div>
+  </div>
+</div>
+
+<!-- Mobile controls -->
+<div class="pad" id="pad">
+  <div class="col">
+    <div class="btnc" data-key="KeyA">◄</div>
+    <div class="btnc" data-key="KeyD">►</div>
+  </div>
+  <div class="col">
+    <div class="btnc wide" data-key="KeyW">W</div>
+    <div class="btnc wide" data-key="KeyS">S</div>
+  </div>
+  <div class="col">
+    <div class="btnc" data-key="ShiftLeft">N2O</div>
+  </div>
+</div>
+
+<!-- Three.js + Cannon.js -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xd8f1ff, 60, 500);
+  const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1500);
+  camera.position.set(0, 6, 16);
+
+  // Sky
+  renderer.setClearColor(0xbfe8ff, 1);
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xf7e2b0, 0.7); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(50, 120, -30);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.near = 20;
+  sun.shadow.camera.far = 350;
+  sun.shadow.camera.left = -160;
+  sun.shadow.camera.right = 160;
+  sun.shadow.camera.top = 160;
+  sun.shadow.camera.bottom = -160;
+  scene.add(sun);
+
+  // Physics world
+  const world = new CANNON.World();
+  world.gravity.set(0, -12, 0);
+  world.solver.iterations = 12;
+  world.defaultContactMaterial.restitution = 0.1;
+  const groundMat = new CANNON.Material("ground");
+  const carMat = new CANNON.Material("car");
+  const obstacleMat = new CANNON.Material("obs");
+  world.addContactMaterial(new CANNON.ContactMaterial(carMat, groundMat, {friction: 1.0, restitution: 0.0}));
+  world.addContactMaterial(new CANNON.ContactMaterial(obstacleMat, groundMat, {friction: 0.9, restitution: 0.05}));
+  world.addContactMaterial(new CANNON.ContactMaterial(carMat, obstacleMat, {friction: 0.8, restitution: 0.05}));
+
+  // Ground
+  const groundGeo = new THREE.PlaneGeometry(2000,2000,1,1);
+  const groundMat3 = new THREE.MeshStandardMaterial({color:0xf2d6a3, roughness:0.95, metalness:0});
+  const groundMesh = new THREE.Mesh(groundGeo, groundMat3);
+  groundMesh.rotation.x = -Math.PI/2;
+  groundMesh.receiveShadow = true;
+  scene.add(groundMesh);
+  const groundBody = new CANNON.Body({ mass: 0, material: groundMat });
+  groundBody.addShape(new CANNON.Plane());
+  groundBody.quaternion.setFromEuler(-Math.PI/2, 0, 0);
+  world.addBody(groundBody);
+
+  // Car visual
+  const car = new THREE.Group(); scene.add(car);
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.8, 4.2), new THREE.MeshStandardMaterial({color:0x30343a, metalness:.6, roughness:.35}));
+  chassis.castShadow = chassis.receiveShadow = true; car.add(chassis);
+  const cockpit = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.6, 1.6), new THREE.MeshStandardMaterial({color:0x6e7682, metalness:.4, roughness:.4}));
+  cockpit.position.set(0, 0.6, -0.5); cockpit.castShadow = cockpit.receiveShadow = true; car.add(cockpit);
+  function wheelMesh(){ const g=new THREE.CylinderGeometry(0.6,0.6,0.4,16); const m=new THREE.MeshStandardMaterial({color:0x111111, roughness:.6}); const w=new THREE.Mesh(g,m); w.rotation.z=Math.PI/2; w.castShadow=true; return w;}
+  const w1 = wheelMesh(), w2 = wheelMesh(), w3 = wheelMesh(), w4 = wheelMesh();
+  w1.position.set( 1.2, -0.2,  1.7); w2.position.set(-1.2, -0.2,  1.7);
+  w3.position.set( 1.2, -0.2, -1.7); w4.position.set(-1.2, -0.2, -1.7);
+  car.add(w1,w2,w3,w4);
+
+  // Car physics
+  const carBody = new CANNON.Body({
+    mass: 220, material: carMat,
+    position: new CANNON.Vec3(0, 3, 0),
+    angularDamping: 0.7, linearDamping: 0.15
+  });
+  carBody.addShape(new CANNON.Box(new CANNON.Vec3(1.3,0.4,2.1)));
+  world.addBody(carBody);
+
+  // Controls
+  const keys = { w:false, s:false, a:false, d:false, nitro:false };
+  function setKey(code, val){
+    if(code==='KeyW') keys.w=val;
+    if(code==='KeyS') keys.s=val;
+    if(code==='KeyA') keys.a=val;
+    if(code==='KeyD') keys.d=val;
+    if(code==='ShiftLeft' || code==='ShiftRight') keys.nitro=val;
+  }
+  addEventListener('keydown', e=>{ setKey(e.code,true); });
+  addEventListener('keyup',   e=>{ setKey(e.code,false); if(e.code==='KeyC') {camMode=(camMode+1)%2; showToast(camMode? 'Камера: бампер' : 'Камера: преследование');} });
+
+  // Mobile pad
+  for(const el of document.querySelectorAll('.btnc')){
+    const code = el.dataset.key;
+    const on = e=>{ e.preventDefault(); setKey(code,true); };
+    const off= e=>{ e.preventDefault(); setKey(code,false); };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointerleave', off);
+    el.addEventListener('pointercancel', off);
+  }
+
+  // Particles: tire tracks
+  const tracks = [];
+  const trackMat = new THREE.MeshBasicMaterial({color:0x000000, opacity:0.25, transparent:true});
+  function dropTrack(){
+    const wheels = [w1,w2,w3,w4];
+    for(const w of wheels){
+      const p = new THREE.Vector3().setFromMatrixPosition(w.matrixWorld);
+      const t = new THREE.Mesh(new THREE.PlaneGeometry(0.45,0.22), trackMat.clone());
+      t.rotation.x = -Math.PI/2;
+      t.position.set(p.x, 0.02, p.z);
+      scene.add(t);
+      tracks.push(t);
+      if(tracks.length>800){
+        const old = tracks.shift(); scene.remove(old); old.geometry.dispose(); old.material.dispose();
+      }
+    }
+  }
+
+  // Objects
+  const bodies=[], meshes=[];
+  function addPair(mesh, body){ mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh); world.addBody(body); bodies.push(body); meshes.push(mesh); }
+
+  function spawnCactus(x,z){
+    const h = 2 + Math.random()*2;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, h, 10), new THREE.MeshStandardMaterial({color:0x1b8f3c, roughness:.8}));
+    mesh.position.set(x,h/2,z);
+    const body = new CANNON.Body({mass:8, material: obstacleMat, angularDamping:0.3, linearDamping:0.02});
+    body.addShape(new CANNON.Cylinder(0.25,0.35,h,8));
+    body.position.set(x,h/2,z);
+    addPair(mesh,body);
+  }
+  function spawnWeed(x,z){
+    const r=0.5+Math.random()*0.4;
+    const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(r,0), new THREE.MeshStandardMaterial({color:0xc49e64, roughness:.95}));
+    const body=new CANNON.Body({mass:1.5, material: obstacleMat, angularDamping:0.05, linearDamping:0.02});
+    body.addShape(new CANNON.Sphere(r*0.9)); body.position.set(x,r*1.5,z);
+    body.applyImpulse(new CANNON.Vec3((Math.random()-.5)*3,0,(Math.random()-.5)*3), body.position);
+    addPair(mesh,body);
+  }
+  function spawnFrog(x,z){
+    const frog = new THREE.Mesh(new THREE.SphereGeometry(0.35,12,10), new THREE.MeshStandardMaterial({color:0x2db84b, roughness:.6}));
+    frog.scale.set(1.2,0.65,1.2); frog.position.set(x,0.4,z);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07,8,8), new THREE.MeshStandardMaterial({color:0xffffff}));
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.03,8,8), new THREE.MeshStandardMaterial({color:0x000000}));
+    const eye2=eye.clone(), pupil2=pupil.clone();
+    eye.position.set(0.12,0.18,0.22); pupil.position.set(0.12,0.18,0.27);
+    eye2.position.set(-0.12,0.18,0.22); pupil2.position.set(-0.12,0.18,0.27);
+    frog.add(eye,pupil,eye2,pupil2);
+    const body=new CANNON.Body({mass:0.6, material: obstacleMat, linearDamping:0.05, angularDamping:0.8});
+    body.addShape(new CANNON.Sphere(0.33)); body.position.set(x,0.5,z);
+    addPair(frog, body);
+    setInterval(()=>{
+      const onGround = Math.abs(body.velocity.y)<0.05 && body.position.y<0.6;
+      if(onGround){
+        const dir = new CANNON.Vec3((Math.random()-.5)*2, 1.8+Math.random()*0.6, (Math.random()-.5)*2);
+        body.applyImpulse(dir, body.position);
+      }
+    }, 1200+Math.random()*800);
+  }
+  function rand(min,max){ return min + Math.random()*(max-min); }
+  for(let i=0;i<32;i++) spawnCactus(rand(-280,280), rand(-280,280));
+  for(let i=0;i<26;i++) spawnWeed(rand(-260,260), rand(-260,260));
+  for(let i=0;i<18;i++) spawnFrog(rand(-220,220), rand(-220,220));
+
+  // Audio (no external assets)
+  let AC=null, engineOsc=null, engineGain=null, nitroNoise=null, nitroGain=null;
+  function initAudio(){
+    if(AC) return;
+    AC = new (window.AudioContext||window.webkitAudioContext)();
+    // engine
+    engineOsc = AC.createOscillator(); engineGain = AC.createGain();
+    engineOsc.type='sawtooth'; engineGain.gain.value=0.0;
+    engineOsc.connect(engineGain).connect(AC.destination); engineOsc.start();
+    // nitro noise
+    const buffer = AC.createBuffer(1, AC.sampleRate*2, AC.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*0.6;
+    nitroNoise = AC.createBufferSource(); nitroNoise.buffer = buffer; nitroNoise.loop = true;
+    nitroGain = AC.createGain(); nitroGain.gain.value=0.0;
+    nitroNoise.connect(nitroGain).connect(AC.destination); nitroNoise.start();
+  }
+
+  // Nitro
+  let nitro=1.0; // 0..1
+  const nitroBar = document.getElementById('nitro');
+  function updateNitro(dt, using){
+    const drain = using? 0.35 : -0.15;
+    nitro = Math.min(1, Math.max(0, nitro - drain*dt));
+    nitroBar.style.width = (nitro*100).toFixed(1) + '%';
+    if(nitroGain){ nitroGain.gain.value = using? 0.08 : 0.0; }
+  }
+
+  // UI speed
+  const spdEl = document.getElementById('spd');
+  function kmh(v){ return Math.round(v*3.6); }
+
+  // Camera mode: 0 chase, 1 bumper
+  let camMode = 0;
+
+  // Overlay start
+  const overlay = document.getElementById('overlay');
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    overlay.style.display='none';
+    initAudio();
+    if(AC && AC.state==='suspended') AC.resume();
+    canvas.focus();
+  });
+
+  // Toast helper
+  const toast = document.getElementById('toast');
+  function showToast(msg){ toast.textContent=msg; toast.style.display='block'; clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.style.display='none', 1400); }
+
+  // Game loop & physics
+  const fixedTimeStep = 1/60;
+  let last = performance.now(), acc = 0;
+  function stepPhysics(dt){
+    acc += dt;
+    while(acc >= fixedTimeStep){
+      // Controls → physics
+      const fwd = new CANNON.Vec3(0,0,-1);
+      carBody.quaternion.vmult(fwd, fwd); // to world
+
+      const useNitro = keys.nitro && nitro>0.01;
+      const mul = useNitro ? 2.2 : 1.0;
+      const accel = 25 * mul; // m/s^2 equivalent push
+
+      if(keys.w){
+        carBody.velocity.vadd(fwd.scale(accel*fixedTimeStep), carBody.velocity);
+      }
+      if(keys.s){
+        carBody.velocity.vadd(fwd.scale(-accel*0.6*fixedTimeStep), carBody.velocity);
+      }
+
+      // steering as yaw angular velocity
+      const speed = carBody.velocity.length();
+      const steer = (keys.a?1:0) + (keys.d?-1:0);
+      const yaw = (Math.min(1, speed/15) * 1.0) * steer;
+      carBody.angularVelocity.y += yaw * fixedTimeStep;
+
+      // lateral damping
+      const qinv = carBody.quaternion.inverse();
+      const lv = carBody.velocity.clone();
+      qinv.vmult(lv, lv); // to local
+      lv.x *= 0.80; // kill side slip
+      carBody.quaternion.vmult(lv, carBody.velocity); // back to world
+
+      // downforce for stability
+      const down = Math.min(60, speed*0.7);
+      carBody.applyForce(new CANNON.Vec3(0, -down, 0), carBody.position);
+
+      // speed clamp
+      const maxSpeed = 36 * mul; // m/s
+      if(speed > maxSpeed){
+        const factor = maxSpeed / (speed + 1e-6);
+        carBody.velocity.scale(factor, carBody.velocity);
+      }
+
+      // baseline drag
+      carBody.velocity.scale(0.999, carBody.velocity);
+
+      world.step(fixedTimeStep);
+      acc -= fixedTimeStep;
+
+      // nitro update each step
+      updateNitro(fixedTimeStep, useNitro);
+    }
+  }
+
+  function loop(now){
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.033, (now - last) / 1000); last = now;
+    stepPhysics(dt);
+
+    // Sync car
+    car.position.set(carBody.position.x, carBody.position.y, carBody.position.z);
+    car.quaternion.set(carBody.quaternion.x, carBody.quaternion.y, carBody.quaternion.z, carBody.quaternion.w);
+
+    // Wheels spin
+    const speed = carBody.velocity.length();
+    const wheelRot = speed * 0.3;
+    w1.rotation.x += wheelRot; w2.rotation.x += wheelRot; w3.rotation.x += wheelRot; w4.rotation.x += wheelRot;
+
+    // Tracks every few frames if moving
+    if(speed>2 && (performance.now()%120)<16) dropTrack();
+
+    // Camera
+    const carDir = new THREE.Vector3(0,0,-1).applyQuaternion(car.quaternion);
+    const up = new THREE.Vector3(0,1,0);
+    if(camMode===0){
+      const targetPos = new THREE.Vector3().copy(car.position).addScaledVector(carDir, -12).add(new THREE.Vector3(0,5,0));
+      camera.position.lerp(targetPos, 0.08);
+      const lookAt = new THREE.Vector3().copy(car.position).add(new THREE.Vector3(0,1.2,0));
+      camera.lookAt(lookAt);
+    }else{
+      const bumperPos = new THREE.Vector3().copy(car.position).add(new THREE.Vector3(0,1.5,0)).addScaledVector(carDir, 1.0);
+      camera.position.lerp(bumperPos, 0.35);
+      const look = new THREE.Vector3().copy(car.position).addScaledVector(carDir, 6).add(new THREE.Vector3(0,1.2,0));
+      camera.lookAt(look);
+    }
+
+    // Engine sound
+    if(engineOsc && engineGain){
+      const throttle = keys.w ? 1 : (keys.s ? 0.2 : 0.05);
+      const rpm = 40 + speed*45 + throttle*220;
+      engineOsc.frequency.value = rpm;
+      engineGain.gain.value = Math.min(0.18, 0.04 + speed*0.01 + throttle*0.12);
+    }
+
+    // Speed UI
+    spdEl.textContent = kmh(speed);
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(loop);
+
+  // Resize
+  addEventListener('resize', ()=>{
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  // Start hint
+  setTimeout(()=>showToast('W/S — газ/тормоз, A/D — поворот, Shift — нитро, C — камера'), 600);
+
+  // Collisions -> small camera shake
+  carBody.addEventListener('collide', e=>{
+    const v = e.contact.getImpactVelocityAlongNormal();
+    if(v>3){
+      const camKick = new THREE.Vector3( (Math.random()-.5)*0.4, (Math.random()-.5)*0.2, (Math.random()-.5)*0.4 );
+      camera.position.add(camKick);
+    }
+  });
+
+})();</script>
+</body>
+</html>
