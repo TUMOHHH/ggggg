@@ -1,9 +1,8 @@
-/*! ALLRED Studio scene — BUILD 9 (pyramids only, strong hover, clean glass/metal) */
+/*! ALLRED Studio — BUILD 10 (pyramids only, strong hover, clean glass/metal) */
 (function(){
   const CDN1="https://unpkg.com/three@0.160.0/build/three.min.js";
   const CDN2="https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js";
 
-  // == CSS + HTML ==
   function addStyle(){
     if(document.getElementById("allred-style")) return;
     const css=`
@@ -23,17 +22,20 @@
   repeating-linear-gradient(to right,rgba(0,0,0,.06) 0,rgba(0,0,0,.06) 1px,transparent 60px),
   repeating-linear-gradient(to bottom,rgba(0,0,0,.04) 0,rgba(0,0,0,.04) 1px,transparent 60px);
   transform:perspective(1200px) rotateX(35deg) translateY(16vh);opacity:.45;filter:blur(.2px)}
-.grain{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.12;mix-blend-mode:multiply;
+.grain{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.1;mix-blend-mode:multiply;
   background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.9"/></svg>');
   animation:g 1.6s steps(2) infinite}
 @keyframes g{0%{transform:translate(0,0)}25%{transform:translate(-8px,5px)}50%{transform:translate(7px,-4px)}75%{transform:translate(-3px,10px)}100%{transform:translate(0,0)}}
-#allred-build{position:fixed;right:10px;bottom:10px;z-index:5;font:600 11px/1.1 system-ui;padding:.25rem .5rem;border-radius:.5rem;background:#0008;color:#fff}
+#allred-build{position:fixed;right:10px;bottom:10px;z-index:9;font:600 11px/1 system-ui;padding:.25rem .5rem;border-radius:.5rem;background:#000c;color:#fff}
 `;
     const s=document.createElement("style"); s.id="allred-style"; s.textContent=css; document.head.appendChild(s);
   }
   function addMarkup(){
     const root=document.getElementById("allred-root")||document.body;
-    if(document.getElementById("ALLRED_STAGE")) return;
+    // убьём старую сцену, если оставалась
+    const old=document.getElementById("ALLRED_STAGE"); if(old) old.remove();
+    const tag=document.getElementById("allred-build"); if(tag) tag.remove();
+
     root.insertAdjacentHTML("beforeend",`
 <div class="allred-stage" id="ALLRED_STAGE">
   <div class="grid"></div>
@@ -45,7 +47,9 @@
   </div></div>
   <div class="grain"></div>
 </div>`);
-    const tag=document.createElement('div'); tag.id='allred-build'; tag.textContent='ALLRED build 9'; document.body.appendChild(tag);
+    const b=document.createElement('div'); b.id='allred-build';
+    b.textContent='ALLRED build '+(window.ALLRED_BUILD||'10');
+    document.body.appendChild(b);
   }
   function ready(fn){document.readyState!=="loading"?fn():document.addEventListener("DOMContentLoaded",fn)}
   function ensureTHREE(cb){
@@ -53,12 +57,11 @@
     const a=document.createElement("script"); a.src=CDN1; a.onload=cb; a.onerror=()=>{const b=document.createElement("script"); b.src=CDN2; b.onload=cb; document.head.appendChild(b)}; document.head.appendChild(a);
   }
 
-  // == SCENE ==
   function start(){
     addStyle(); addMarkup();
 
-    // Тюнинг
-    const BASE_W=1536, COUNT=130, SIZE_MIN=1.3, SIZE_MAX=3.2, HOVER_FORCE=0.2, CLICK_FORCE=0.45, DAMP=0.93, RADIUS=3.3;
+    // Настройки
+    const BASE_W=1536, COUNT=130, SIZE_MIN=1.3, SIZE_MAX=3.2, HOVER_FORCE=0.28, CLICK_FORCE=0.55, DAMP=0.93, RADIUS=3.6;
 
     const cvs=document.getElementById("allred-fx");
     const renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true,alpha:true});
@@ -72,48 +75,48 @@
     scene.add(new THREE.HemisphereLight(0xffffff,0xd6deea,1.0));
     const dir=new THREE.DirectionalLight(0xffffff,.95); dir.position.set(8,10,7); scene.add(dir);
 
-    // env + noise
+    // env + noise (чистые блики)
     const env=makeEnv();
-    const normalTex=noise(256,256,.9,true);
-    const roughTex =noise(256,256,.35,false); // чуть глаже
+    const nm=noise(256,256,.6,true); nm.wrapS=nm.wrapT=THREE.RepeatWrapping; nm.repeat.set(2,2);
+    const rm=noise(256,256,.25,false);
+    const normalScale=new THREE.Vector2(0.15,0.15);
     const RED=new THREE.Color(0xe10600);
-    const normalScale=new THREE.Vector2(0.18,0.18);
 
     const glass=new THREE.MeshPhysicalMaterial({
-      color:0xf7fbff, metalness:.45, roughness:.06,
-      clearcoat:1, clearcoatRoughness:.03,
-      transmission: renderer.capabilities.isWebGL2 ? 0.75 : 0.0, thickness:0.8, ior:1.45,
-      envMap:env, envMapIntensity:1.25, normalMap:normalTex, roughnessMap:roughTex
+      color:0xf8fbff, metalness:.35, roughness:.05,
+      clearcoat:1, clearcoatRoughness:.025,
+      transmission: renderer.capabilities.isWebGL2 ? 0.75 : 0.0, thickness:0.9, ior:1.45,
+      envMap:env, envMapIntensity:1.3, normalMap:nm, roughnessMap:rm
     });
-    glass.normalScale = normalScale.clone();
+    glass.normalScale=normalScale.clone();
 
     const redMetal=new THREE.MeshPhysicalMaterial({
-      color:RED, metalness:.9, roughness:.2,
-      clearcoat:1, clearcoatRoughness:.06,
-      envMap:env, envMapIntensity:1.2, normalMap:normalTex, roughnessMap:roughTex
+      color:RED, metalness:.95, roughness:.22,
+      clearcoat:1, clearcoatRoughness:.05,
+      envMap:env, envMapIntensity:1.25, normalMap:nm, roughnessMap:rm
     });
-    redMetal.normalScale = normalScale.clone();
+    redMetal.normalScale=normalScale.clone();
 
-    // ТОЛЬКО ПИРАМИДЫ
+    // ТОЛЬКО пирамиды
     const geos=[
       new THREE.ConeGeometry(.6,1.35,3).translate(0,.675,0),
       new THREE.TetrahedronGeometry(.85,0),
       new THREE.ConeGeometry(.5,1.1,3).translate(0,.55,0),
     ];
 
-    // Боковые крупные осколки
+    // Боковые осколки
     const side=new THREE.Group(); scene.add(side);
     const scale=Math.min(1.5, Math.max(.7, innerWidth/BASE_W));
     const count=Math.round(COUNT*scale);
     const shards=[];
-    function spawn(area,n){
+    function spawn(a,n){
       for(let i=0;i<n;i++){
         const g=geos[(Math.random()*geos.length)|0];
-        const mat=(Math.random()<.45? redMetal: glass).clone(); // больше красных
+        const mat=(Math.random()<.5?redMetal:glass).clone();
         const m=new THREE.Mesh(g,mat);
         const base=new THREE.Vector3(
-          THREE.MathUtils.randFloat(area.minX,area.maxX),
-          THREE.MathUtils.randFloat(area.minY,area.maxY),
+          THREE.MathUtils.randFloat(a.minX,a.maxX),
+          THREE.MathUtils.randFloat(a.minY,a.maxY),
           THREE.MathUtils.randFloat(-2.4,2.2)
         );
         m.position.copy(base);
@@ -125,27 +128,27 @@
         side.add(m); shards.push(m);
       }
     }
-    const X=11, Y=7.2;
+    const X=11,Y=7.2;
     spawn({minX:-X,maxX:-X*.45,minY:-1,maxY:Y}, Math.round(count*.55));
     spawn({minX: X*.45,maxX: X,  minY:-1,maxY:Y}, Math.round(count*.55));
-    spawn({minX:-X*.9, maxX: X*.9, minY:Y*.55,maxY:Y}, Math.round(count*.35));
+    spawn({minX:-X*.9,maxX: X*.9,minY:Y*.55,maxY:Y}, Math.round(count*.35));
 
-    // Центральная фигура (пирамиды)
+    // Центральная фигура
     const center=new THREE.Group(); scene.add(center); center.position.set(0,.2,0);
     const cluster=new THREE.Group(); center.add(cluster);
-    function pyr(r,h,red){const g=new THREE.ConeGeometry(r,h,3).translate(0,h/2,0); return new THREE.Mesh(g, red?redMetal.clone():glass.clone());}
+    function pyr(r,h,isRed){const g=new THREE.ConeGeometry(r,h,3).translate(0,h/2,0); return new THREE.Mesh(g,isRed?redMetal.clone():glass.clone());}
     const P=[], PD=[];
-    const p1=pyr(1.2,2.25,0); p1.rotation.y=Math.PI/7; cluster.add(p1); P.push(p1);
-    const p2=pyr(.9,1.85,1); p2.position.set(1.65,.1,.2); p2.rotation.set(.05,-.42,.2); cluster.add(p2); P.push(p2);
-    const p3=pyr(.78,1.65,0); p3.position.set(-1.52,-.15,-.3); p3.rotation.set(-.2,.5,-.15); cluster.add(p3); P.push(p3);
-    const p4=pyr(.66,1.35,0); p4.position.set(.25,-.55,1.25); p4.rotation.set(.35,-.2,.1); cluster.add(p4); P.push(p4);
-    const p5=pyr(.6,1.25,1); p5.position.set(-.35,.78,.95); p5.rotation.set(-.1,.25,0); cluster.add(p5); P.push(p5);
+    const p1=pyr(1.2,2.25,false); p1.rotation.y=Math.PI/7; cluster.add(p1); P.push(p1);
+    const p2=pyr(.9,1.85,true); p2.position.set(1.65,.1,.2); p2.rotation.set(.05,-.42,.2); cluster.add(p2); P.push(p2);
+    const p3=pyr(.78,1.65,false); p3.position.set(-1.52,-.15,-.3); p3.rotation.set(-.2,.5,-.15); cluster.add(p3); P.push(p3);
+    const p4=pyr(.66,1.35,false); p4.position.set(.25,-.55,1.25); p4.rotation.set(.35,-.2,.1); cluster.add(p4); P.push(p4);
+    const p5=pyr(.6,1.25,true); p5.position.set(-.35,.78,.95); p5.rotation.set(-.1,.25,0); cluster.add(p5); P.push(p5);
     P.forEach(m=>PD.push({m,base:m.position.clone(),rot:m.rotation.clone()}));
 
     // Микро-дебрис (малые пирамидки)
     const dGeo=new THREE.TetrahedronGeometry(.1,0);
-    const dMat=new THREE.MeshPhysicalMaterial({color:0xffffff, metalness:.55, roughness:.3, envMap:env, envMapIntensity:1.0, normalMap:normalTex, roughnessMap:roughTex});
-    dMat.normalScale = normalScale.clone();
+    const dMat=new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:.6,roughness:.28,envMap:env,envMapIntensity:1.15,normalMap:nm,roughnessMap:rm});
+    dMat.normalScale=normalScale.clone();
     const debris=[], dGroup=new THREE.Group(); center.add(dGroup);
     for(let i=0;i<120;i++){
       const m=new THREE.Mesh(dGeo,(Math.random()<.3?redMetal:dMat).clone());
@@ -155,7 +158,7 @@
       dGroup.add(m); debris.push(m);
     }
 
-    // Наведение — пересечение луча с плоскостью Z=0
+    // Наведение: пересечение луча с плоскостью z=0
     const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
     const pointer=new THREE.Vector3(); const planeZ0=new THREE.Plane(new THREE.Vector3(0,0,1),0);
     let active=false, hover=false;
@@ -165,22 +168,21 @@
       ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;
       ray.setFromCamera(ndc,camera);
       ray.ray.intersectPlane(planeZ0, pointer);
-      active=true; hover = pointer.distanceTo(center.position) < 3.2;
+      active=true; hover = pointer.distanceTo(center.position) < 3.3;
     },{passive:true});
     addEventListener("pointerleave",()=>{active=false; hover=false;});
-    addEventListener("click",()=> impulse(CLICK_FORCE, RADIUS*1.25));
+    addEventListener("click",()=>impulse(CLICK_FORCE,RADIUS*1.25));
 
-    function impulse(force,rad){
+    function impulse(F,rad){
       for(const m of shards){
         const d=m.position.distanceTo(pointer);
         if(d<rad){
           const dir=m.position.clone().sub(pointer).normalize();
-          m.userData.vel.addScaledVector(dir, force*(1-d/rad));
+          m.userData.vel.addScaledVector(dir, F*(1-d/rad));
         }
       }
     }
 
-    // Анимация
     function tick(t){
       requestAnimationFrame(tick);
 
@@ -211,9 +213,9 @@
         const m=o.m;
         if(hover){
           const dir=m.position.clone().sub(cluster.position).normalize();
-          const target=o.base.clone().addScaledVector(dir,.55);
-          m.position.lerp(target,.23);
-          m.rotation.x+=.01; m.rotation.y+=.011;
+          const target=o.base.clone().addScaledVector(dir,.58);
+          m.position.lerp(target,.24);
+          m.rotation.x+=.012; m.rotation.y+=.012;
         }else{
           m.position.lerp(o.base,.14);
           m.rotation.x=THREE.MathUtils.lerp(m.rotation.x,o.rot.x,.14);
@@ -221,7 +223,6 @@
           m.rotation.z=THREE.MathUtils.lerp(m.rotation.z,o.rot.z,.14);
         }
       }
-
       renderer.render(scene,camera);
     }
     tick(0);
@@ -229,7 +230,6 @@
     addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();});
     document.getElementById("allred-cta")?.addEventListener("click",()=> alert("ALLRED Studio — request form goes here."));
 
-    // helpers
     function makeEnv(){
       const faces=[]; for(let i=0;i<6;i++){ const c=document.createElement("canvas"); c.width=c.height=256;
         const x=c.getContext("2d"), g=x.createLinearGradient(0,0,256,256);
@@ -245,13 +245,12 @@
       for(let i=0;i<img.data.length;i+=4){
         const n=Math.random()*255;
         if(asNormal){
-          img.data[i]=128+(n-128)*.25; img.data[i+1]=128+(Math.random()*255-128)*.25; img.data[i+2]=255; img.data[i+3]=255;
+          img.data[i]=128+(n-128)*.2; img.data[i+1]=128+(Math.random()*255-128)*.2; img.data[i+2]=255; img.data[i+3]=255;
         } else {
           const v=255-n*inten; img.data[i]=img.data[i+1]=img.data[i+2]=v; img.data[i+3]=255;
         }
       }
-      x.putImageData(img,0,0);
-      const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(2,2); return t;
+      x.putImageData(img,0,0); return new THREE.CanvasTexture(c);
     }
   }
 
