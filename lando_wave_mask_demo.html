@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wavy Helmet Reveal Demo</title>
+  <style>
+    :root {
+      --bg: #0c0d14;
+      --accent: #f7e64a;
+      --text: #f6f7fb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 20%, #1b1d2d, var(--bg));
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      padding: 24px;
+    }
+
+    .card {
+      position: relative;
+      width: min(560px, 90vw);
+      aspect-ratio: 4 / 5;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      isolation: isolate;
+    }
+
+    .portrait,
+    .helmet-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .helmet-layer {
+      mask: url(#wave-mask);
+      -webkit-mask: url(#wave-mask);
+      mix-blend-mode: screen;
+      filter: saturate(1.3) drop-shadow(0 12px 24px rgba(0,0,0,0.45));
+    }
+
+    .helmet-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .badge {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge strong {
+      color: var(--accent);
+    }
+
+    /* optional motion for the portrait to feel alive */
+    .portrait {
+      transform-origin: center;
+      animation: float 8s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: scale(1.02) translateY(0px); }
+      50% { transform: scale(1.04) translateY(-6px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img
+      class="portrait"
+      src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80"
+      alt="Portrait background"
+      loading="lazy"
+    />
+
+    <div class="helmet-layer">
+      <svg class="helmet-svg" viewBox="0 0 560 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="helmet-paint" x1="0%" y1="0%" x2="80%" y2="100%">
+            <stop offset="0%" stop-color="#f7e64a" />
+            <stop offset="50%" stop-color="#f7b74a" />
+            <stop offset="100%" stop-color="#f74aad" />
+          </linearGradient>
+
+          <pattern id="visor-lines" patternUnits="userSpaceOnUse" width="14" height="14" patternTransform="rotate(-12)">
+            <rect width="14" height="14" fill="rgba(255,255,255,0.08)" />
+            <rect width="14" height="7" fill="rgba(255,255,255,0.16)" />
+          </pattern>
+        </defs>
+
+        <!-- stylized helmet shape -->
+        <path
+          d="M120 240 C150 120 280 70 400 120 C460 150 500 220 520 300 C540 370 520 470 460 540 C410 590 340 620 270 620 C210 620 150 600 110 550 C70 500 50 430 60 360 C70 300 90 260 120 240 Z"
+          fill="url(#helmet-paint)"
+        />
+        <path
+          d="M154 310 C200 260 320 230 430 270 C460 280 480 330 470 370 C460 420 410 440 360 440 L200 438 C160 436 136 402 140 364 C142 340 148 324 154 310 Z"
+          fill="#0c0d14"
+          opacity="0.92"
+        />
+        <rect x="230" y="315" width="120" height="38" rx="18" fill="url(#visor-lines)" opacity="0.85" />
+        <path
+          d="M160 330 L145 355 C135 370 120 390 122 408 C125 435 160 448 200 450 L196 420 C194 394 190 365 200 350 C213 326 235 326 258 326 C280 326 312 326 328 320 C360 308 380 282 408 268 C436 254 462 250 480 254 L464 222 C450 198 430 178 398 168 C340 148 280 156 230 190 C196 214 173 244 160 274 Z"
+          fill="#ffffff"
+          opacity="0.2"
+        />
+      </svg>
+    </div>
+
+    <div class="badge">
+      <strong>Wave Mask</strong> helmet reveal
+    </div>
+
+    <!-- SVG defs for the animated mask -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="stripe-pattern" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+          <rect width="120" height="60" fill="white" />
+          <rect y="60" width="120" height="60" fill="black" />
+          <animateTransform attributeName="patternTransform" type="translate" values="0 0; 0 -120" dur="6s" repeatCount="indefinite" />
+        </pattern>
+
+        <filter id="ripple-distort" x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.005 0.01" numOctaves="3" seed="3" result="turb">
+            <animate attributeName="seed" dur="8s" values="3; 8; 3" repeatCount="indefinite" />
+            <animate attributeName="baseFrequency" dur="10s" values="0.008 0.01; 0.014 0.006; 0.008 0.01" repeatCount="indefinite" />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="turb" scale="80" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+
+        <mask id="wave-mask">
+          <rect x="-20%" y="-20%" width="140%" height="140%" fill="url(#stripe-pattern)" filter="url(#ripple-distort)" />
+        </mask>
+      </defs>
+    </svg>
+  </div>
+</body>
+</html>
